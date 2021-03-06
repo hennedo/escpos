@@ -1,4 +1,4 @@
-# About escpos #
+# About escpos [![GoDoc](https://godoc.org/github.com/hennedo/escpos?status.svg)](https://godoc.org/github.com/hennedo/escpos)
 
 This is a [Golang](http://www.golang.org/project) package that provides
 [ESC-POS](https://en.wikipedia.org/wiki/ESC/P) library functions to help with
@@ -22,14 +22,6 @@ It implements the protocol described in [this Command Manual](https://pos-x.com/
   * [x] UPC-A, UPC-E, EAN13, EAN8 Barcodes
   * [x] QR Codes
   * [x] Standard printing mode
-  * [ ] ITF, CODE39, CODABAR, CODE93, CODE128 Barcodes
-  * [ ] Page mode
-  * [ ] Setting margins
-  * [ ] Setting printing positions
-  * [ ] Setting the font
-  * [ ] Generating a Pulse
-  * [ ] Image Printing
-  * [ ] Storing / Printing predefined bitmaps
 
 ## Installation ##
 
