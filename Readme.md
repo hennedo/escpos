@@ -22,6 +22,8 @@ It implements the protocol described in [this Command Manual](https://pos-x.com/
   * [x] UPC-A, UPC-E, EAN13, EAN8 Barcodes
   * [x] QR Codes
   * [x] Standard printing mode
+  * [x] Image Printing
+  * [x] Printing of predefined NV images
 
 ## Installation ##
 

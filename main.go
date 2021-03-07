@@ -4,10 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/qiniu/iconv"
+	"image"
 	"io"
 	"math"
 )
-type EscposStyle struct {
+type Style struct {
 	Bold			bool
 	Width, Height	uint8
 	Reverse			bool
@@ -25,13 +26,14 @@ const (
 	QRCodeErrorCorrectionLevelM uint8 = 49
 	QRCodeErrorCorrectionLevelQ uint8 = 50
 	QRCodeErrorCorrectionLevelH uint8 = 51
-	esc byte = '\x1B'
-	gs byte = '\x1D'
+	esc byte = 0x1B
+	gs byte = 0x1D
+	fs byte = 0x1C
 )
 
 type Escpos struct {
-	dst 	io.Writer
-	Style	EscposStyle
+	dst   io.Writer
+	Style Style
 }
 
 // New create an Escpos printer
@@ -336,6 +338,24 @@ func (e *Escpos) QRCode(code string, model bool, size uint8, correctionLevel uin
 
 // Image stuff.
 // todo.
+
+// Prints an image
+func (e *Escpos) PrintImage(image image.Image) (int, error) {
+	xL, xH, yL, yH, data := printImage(image)
+	return e.WriteRaw(append([]byte{gs, 'v', 48, 0, xL, xH, yL, yH}, data...))
+}
+
+// Print a predefined bit image with index p and mode mode
+func (e *Escpos) PrintNVBitImage(p uint8, mode uint8) (int, error) {
+	if p == 0 {
+		return 0, errors.New("start index of nv bit images start at 1")
+	}
+	if mode > 3 {
+		return 0, errors.New("mode only supports values from 0 to 3")
+	}
+
+	return e.WriteRaw([]byte{fs, 'd', p, mode})
+}
 
 // Configuration stuff
 
