@@ -39,10 +39,8 @@ The escpos package can be used as the following:
 package main
 
 import (
-    "bufio"
-    "net"
-
-    "github.com/hennedo/escpos"
+	"github.com/hennedo/escpos"
+	"net"
 )
 
 func main() {
@@ -52,17 +50,17 @@ func main() {
 	}
 	defer socket.Close()
 
-	w := bufio.NewWriter(socket)
-	p := New(w)
+	p := escpos.New(socket)
 
 	p.Bold(true).Size(2, 2).Write("Hello World")
 	p.LineFeed()
-	p.Bold(false).Underline(2).Justify(JustifyCenter).Write("this is underlined")
+	p.Bold(false).Underline(2).Justify(escpos.JustifyCenter).Write("this is underlined")
 	p.LineFeed()
-	p.QRCode("https://github.com/hennedo/escpos", true, 255, QRCodeErrorCorrectionLevelH)
+	p.QRCode("https://github.com/hennedo/escpos", true, 10, escpos.QRCodeErrorCorrectionLevelH)
 
-	p.Cut()
 
-	w.Flush()
+
+	// You need to use either p.Print() or p.PrintAndCut() at the end to send the data to the printer.
+	p.PrintAndCut()
 }
 ```

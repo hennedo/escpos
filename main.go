@@ -1,7 +1,7 @@
 package escpos
 
 import (
-	"errors"
+	"bufio"
 	"fmt"
 	"github.com/qiniu/iconv"
 	"image"
@@ -32,15 +32,32 @@ const (
 )
 
 type Escpos struct {
-	dst   io.Writer
+	dst   *bufio.Writer
 	Style Style
 }
 
 // New create an Escpos printer
 func New(dst io.Writer) (e *Escpos) {
-	e = &Escpos{dst: dst}
+	e = &Escpos{
+		dst: bufio.NewWriter(dst),
+	}
 	return
 }
+
+// Sends the buffered data to the printer
+func (e *Escpos) Print() error {
+	return e.dst.Flush()
+}
+
+// Sends the buffered data to the printer and performs a cut
+func (e *Escpos) PrintAndCut() error {
+	_, err := e.Cut()
+	if err != nil {
+		return fmt.Errorf("failed to write to buffer: %v", err)
+	}
+	return e.dst.Flush()
+}
+
 
 // WriteRaw write raw bytes to the printer
 func (e *Escpos) WriteRaw(data []byte) (int, error) {
@@ -212,19 +229,13 @@ func (e *Escpos) BarcodeWidth(p uint8) (int, error) {
 	return e.WriteRaw([]byte{gs, 'h', p})
 }
 
-// GS k for printing barcode
-
-func (e *Escpos) TestBarcode() (int, error) {
-	return e.WriteRaw([]byte{gs, 'k', 0, '1', '2', '1', '1', '4', '5', '6', '5', '4', '3', '4', '5', 0})
-}
-
 // Prints a UPCA Barcode. code can only be numerical characters and must have a length of 11 or 12
 func (e *Escpos) UPCA(code string) (int, error) {
 	if len(code) != 11 && len(code) != 12 {
-		return 0, errors.New("code should have a length between 11 and 12")
+		return 0, fmt.Errorf("code should have a length between 11 and 12")
 	}
 	if !onlyDigits(code) {
-		return 0, errors.New("code can only contain numerical characters")
+		return 0, fmt.Errorf("code can only contain numerical characters")
 	}
 	byteCode := append([]byte(code), 0)
 	return e.WriteRaw(append([]byte{gs, 'k', 0}, byteCode...))
@@ -233,10 +244,10 @@ func (e *Escpos) UPCA(code string) (int, error) {
 // Prints a UPCE Barcode. code can only be numerical characters and must have a length of 11 or 12
 func (e *Escpos) UPCE(code string) (int, error) {
 	if len(code) != 11 && len(code) != 12 {
-		return 0, errors.New("code should have a length between 11 and 12")
+		return 0, fmt.Errorf("code should have a length between 11 and 12")
 	}
 	if !onlyDigits(code) {
-		return 0, errors.New("code can only contain numerical characters")
+		return 0, fmt.Errorf("code can only contain numerical characters")
 	}
 	byteCode := append([]byte(code), 0)
 	return e.WriteRaw(append([]byte{gs, 'k', 1}, byteCode...))
@@ -245,10 +256,10 @@ func (e *Escpos) UPCE(code string) (int, error) {
 // Prints a EAN13 Barcode. code can only be numerical characters and must have a length of 12 or 13
 func (e *Escpos) EAN13(code string) (int, error) {
 	if len(code) != 12 && len(code) != 13 {
-		return 0, errors.New("code should have a length between 12 and 13")
+		return 0, fmt.Errorf("code should have a length between 12 and 13")
 	}
 	if !onlyDigits(code) {
-		return 0, errors.New("code can only contain numerical characters")
+		return 0, fmt.Errorf("code can only contain numerical characters")
 	}
 	byteCode := append([]byte(code), 0)
 	return e.WriteRaw(append([]byte{gs, 'k', 2}, byteCode...))
@@ -257,10 +268,10 @@ func (e *Escpos) EAN13(code string) (int, error) {
 // Prints a EAN8 Barcode. code can only be numerical characters and must have a length of 7 or 8
 func (e *Escpos) EAN8(code string) (int, error) {
 	if len(code) != 7 && len(code) != 8 {
-		return 0, errors.New("code should have a length between 7 and 8")
+		return 0, fmt.Errorf("code should have a length between 7 and 8")
 	}
 	if !onlyDigits(code) {
-		return 0, errors.New("code can only contain numerical characters")
+		return 0, fmt.Errorf("code can only contain numerical characters")
 	}
 	byteCode := append([]byte(code), 0)
 	return e.WriteRaw(append([]byte{gs, 'k', 3}, byteCode...))
@@ -272,10 +283,16 @@ func (e *Escpos) EAN8(code string) (int, error) {
 // Prints a QR Code.
 // code specifies the data to be printed
 // model specifies the qr code model. false for model 1, true for model 2
-// size specifies the size in dots
+// size specifies the size in dots. It needs to be between 1 and 16
 func (e *Escpos) QRCode(code string, model bool, size uint8, correctionLevel uint8) (int, error) {
 	if len(code) > 7089 {
-		return 0, errors.New("the code is too long, it's length should be smaller than 7090")
+		return 0, fmt.Errorf("the code is too long, it's length should be smaller than 7090")
+	}
+	if size < 1 {
+		size = 1
+	}
+	if size > 16 {
+		size = 16
 	}
 	var m byte = 49
 	var err error
@@ -315,7 +332,6 @@ func (e *Escpos) QRCode(code string, model bool, size uint8, correctionLevel uin
 	var pL, pH byte
 	pH = byte(int(math.Floor(float64(codeLength) / 256)))
 	pL = byte(codeLength - 256*int(pH))
-	fmt.Printf("%d %d", pH, pL)
 
 	written, err := e.WriteRaw(append([]byte{gs, '(', 'k', pL, pH, 49, 80, 48}, []byte(code)...))
 	if err != nil {
@@ -348,10 +364,10 @@ func (e *Escpos) PrintImage(image image.Image) (int, error) {
 // Print a predefined bit image with index p and mode mode
 func (e *Escpos) PrintNVBitImage(p uint8, mode uint8) (int, error) {
 	if p == 0 {
-		return 0, errors.New("start index of nv bit images start at 1")
+		return 0, fmt.Errorf("start index of nv bit images start at 1")
 	}
 	if mode > 3 {
-		return 0, errors.New("mode only supports values from 0 to 3")
+		return 0, fmt.Errorf("mode only supports values from 0 to 3")
 	}
 
 	return e.WriteRaw([]byte{fs, 'd', p, mode})
