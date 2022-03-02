@@ -8,32 +8,43 @@ import (
 	"io"
 	"math"
 )
+
 type Style struct {
-	Bold			bool
-	Width, Height	uint8
-	Reverse			bool
-	Underline		uint8 // can be 0, 1 or 2
-	UpsideDown		bool
-	Rotate			bool
-	Justify			uint8
+	Bold          bool
+	Width, Height uint8
+	Reverse       bool
+	Underline     uint8 // can be 0, 1 or 2
+	UpsideDown    bool
+	Rotate        bool
+	Justify       uint8
 }
 
 const (
-	JustifyLeft uint8 = 0
-	JustifyCenter uint8 = 1
-	JustifyRight uint8 = 2
+	JustifyLeft                 uint8 = 0
+	JustifyCenter               uint8 = 1
+	JustifyRight                uint8 = 2
 	QRCodeErrorCorrectionLevelL uint8 = 48
 	QRCodeErrorCorrectionLevelM uint8 = 49
 	QRCodeErrorCorrectionLevelQ uint8 = 50
 	QRCodeErrorCorrectionLevelH uint8 = 51
-	esc byte = 0x1B
-	gs byte = 0x1D
-	fs byte = 0x1C
+	esc                         byte  = 0x1B
+	gs                          byte  = 0x1D
+	fs                          byte  = 0x1C
 )
 
+type PrinterConfig struct {
+	DisableUnderline  bool
+	DisableBold       bool
+	DisableReverse    bool
+	DisableRotate     bool
+	DisableUpsideDown bool
+	DisableJustify    bool
+}
+
 type Escpos struct {
-	dst   *bufio.Writer
-	Style Style
+	dst    *bufio.Writer
+	Style  Style
+	config PrinterConfig
 }
 
 // New create an Escpos printer
@@ -42,6 +53,11 @@ func New(dst io.Writer) (e *Escpos) {
 		dst: bufio.NewWriter(dst),
 	}
 	return
+}
+
+// Sets the Printerconfig
+func (e *Escpos) SetConfig(conf PrinterConfig) {
+	e.config = conf
 }
 
 // Sends the buffered data to the printer
@@ -58,7 +74,6 @@ func (e *Escpos) PrintAndCut() error {
 	return e.dst.Flush()
 }
 
-
 // WriteRaw write raw bytes to the printer
 func (e *Escpos) WriteRaw(data []byte) (int, error) {
 	if len(data) > 0 {
@@ -74,37 +89,49 @@ func (e *Escpos) Write(data string) (int, error) {
 	// we gonna write sum text, so apply the styles!
 	var err error
 	// Bold
-	_, err = e.WriteRaw([]byte{esc, 'E', boolToByte(e.Style.Bold)})
-	if err != nil {
-		// return 0 written bytes here, because technically we did not write any of the bytes of data
-		return 0, err
+	if !e.config.DisableBold {
+		_, err = e.WriteRaw([]byte{esc, 'E', boolToByte(e.Style.Bold)})
+		if err != nil {
+			// return 0 written bytes here, because technically we did not write any of the bytes of data
+			return 0, err
+		}
 	}
 	// Underline
-	_, err = e.WriteRaw([]byte{esc, '-', e.Style.Underline})
-	if err != nil {
-		return 0, err
+	if !e.config.DisableUnderline {
+		_, err = e.WriteRaw([]byte{esc, '-', e.Style.Underline})
+		if err != nil {
+			return 0, err
+		}
 	}
 	// Reverse
-	_, err = e.WriteRaw([]byte{gs, 'B', boolToByte(e.Style.Reverse)})
-	if err != nil {
-		return 0, err
+	if !e.config.DisableReverse {
+		_, err = e.WriteRaw([]byte{gs, 'B', boolToByte(e.Style.Reverse)})
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// Rotate
-	_, err = e.WriteRaw([]byte{esc, 'V', boolToByte(e.Style.Rotate)})
-	if err != nil {
-		return 0, err
+	if !e.config.DisableRotate {
+		_, err = e.WriteRaw([]byte{esc, 'V', boolToByte(e.Style.Rotate)})
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// UpsideDown
-	_, err = e.WriteRaw([]byte{esc, '{', boolToByte(e.Style.UpsideDown)})
-	if err != nil {
-		return 0, err
+	if !e.config.DisableUpsideDown {
+		_, err = e.WriteRaw([]byte{esc, '{', boolToByte(e.Style.UpsideDown)})
+		if err != nil {
+			return 0, err
+		}
 	}
 	// Justify
-	_, err = e.WriteRaw([]byte{esc, 'a', e.Style.Justify})
-	if err != nil {
-		return 0, err
+	if !e.config.DisableJustify {
+		_, err = e.WriteRaw([]byte{esc, 'a', e.Style.Justify})
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// Width / Height
@@ -112,7 +139,6 @@ func (e *Escpos) Write(data string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
 
 	return e.WriteRaw([]byte(data))
 }
@@ -192,7 +218,6 @@ func (e *Escpos) Size(width uint8, height uint8) *Escpos {
 	return e
 }
 
-
 // Barcode stuff.
 
 // Sets the position of the HRI characters
@@ -206,6 +231,7 @@ func (e *Escpos) HRIPosition(p uint8) (int, error) {
 	}
 	return e.WriteRaw([]byte{gs, 'H', p})
 }
+
 // Sets the HRI font to either
 // false: Font A (12x24) or
 // true: Font B (9x24)
@@ -328,7 +354,7 @@ func (e *Escpos) QRCode(code string, model bool, size uint8, correctionLevel uin
 
 	// pL and pH define the size of the data. Data ranges from 1 to (pL + pH*256)-3
 	// 3 < pL + pH*256 < 7093
-	var codeLength = len(code)+3
+	var codeLength = len(code) + 3
 	var pL, pH byte
 	pH = byte(int(math.Floor(float64(codeLength) / 256)))
 	pL = byte(codeLength - 256*int(pH))
@@ -379,6 +405,7 @@ func (e *Escpos) PrintNVBitImage(p uint8, mode uint8) (int, error) {
 func (e *Escpos) LineFeed() (int, error) {
 	return e.Write("\n")
 }
+
 // According to command manual this prints and feeds the paper p*line spacing.
 func (e *Escpos) LineFeedD(p uint8) (int, error) {
 	return e.WriteRaw([]byte{esc, 'd', p})
@@ -393,6 +420,7 @@ func (e *Escpos) DefaultLineSpacing() (int, error) {
 func (e *Escpos) LineSpacing(p uint8) (int, error) {
 	return e.WriteRaw([]byte{esc, '3', p})
 }
+
 // Initializes the printer to the settings it had when turned on
 func (e *Escpos) Initialize() (int, error) {
 	return e.WriteRaw([]byte{esc, '@'})
@@ -407,9 +435,6 @@ func (e *Escpos) MotionUnits(x, y uint8) (int, error) {
 func (e *Escpos) Cut() (int, error) {
 	return e.WriteRaw([]byte{gs, 'V', 'A', '0'})
 }
-
-
-
 
 // Helpers
 func boolToByte(b bool) byte {
