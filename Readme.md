@@ -51,6 +51,7 @@ func main() {
 	defer socket.Close()
 
 	p := escpos.New(socket)
+	p.SetConfig(escpos.ConfigEpsonTMT20II)
 
 	p.Bold(true).Size(2, 2).Write("Hello World")
 	p.LineFeed()
@@ -64,3 +65,26 @@ func main() {
 	p.PrintAndCut()
 }
 ```
+
+## Disable features ##
+
+As the library sets all the styling parameters again for each call of Write, you might run into compatibility issues. Therefore it is possible to deactivate features.
+To do so, use a predefined config (available for all printers listed under [Compatibility](#Compatibility)) right after the escpos.New call
+
+```go
+p := escpos.New(socket)
+p.SetConfig(escpos.ConfigEpsonTMT20II) // predefined config for the Epson TM-T20II
+
+// or for example
+
+p.SetConfig(escpos.PrinterConfig(DisableUnderline: true))
+```
+
+## Compatibility ##
+
+This is a (not complete) list of supported and tested devices.
+
+| Manufacturer | Model    | Styling   | Barcodes | QR Codes | Images |
+| ------------ | -------- | --------- | -------- | -------- | ------ |
+| Epson        | TM-T20II | ✅        | ✅        | ✅       | ✅     |
+| Epson        | TM-T88II | ☑️<br/>UpsideDown Printing not supported  | ✅        |        | ✅     |
