@@ -1,4 +1,5 @@
 # About escpos [![GoDoc](https://godoc.org/github.com/hennedo/escpos?status.svg)](https://godoc.org/github.com/hennedo/escpos)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhennedo%2Fescpos.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhennedo%2Fescpos?ref=badge_shield)
 
 This is a [Golang](http://www.golang.org/project) package that provides
 [ESC-POS](https://en.wikipedia.org/wiki/ESC/P) library functions to help with
@@ -88,3 +89,6 @@ This is a (not complete) list of supported and tested devices.
 | ------------ | -------- | --------- | -------- | -------- | ------ |
 | Epson        | TM-T20II | ✅        | ✅        | ✅       | ✅     |
 | Epson        | TM-T88II | ☑️<br/>UpsideDown Printing not supported  | ✅        |        | ✅     |
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhennedo%2Fescpos.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhennedo%2Fescpos?ref=badge_large)
