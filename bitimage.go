@@ -23,7 +23,7 @@ func printImage(img image.Image) (xL byte, xH byte, yL byte, yH byte, data []byt
 	printHeight := closestNDivisibleBy8(height)
 	bytes, _ := rasterize(printWidth, printHeight, &pixels)
 
-	return byte((width >> 3) & 0xff), byte(((width >> 3) >> 8) & 0xff), byte(height & 0xff), byte((height >> 8) & 0xff), bytes
+	return byte((printWidth >> 3) & 0xff), byte(((printWidth >> 3) >> 8) & 0xff), byte(printHeight & 0xff), byte((printHeight >> 8) & 0xff), bytes
 }
 
 func makeGrayscale(pixels *[][]pixel) {
