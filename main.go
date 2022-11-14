@@ -433,15 +433,15 @@ func (e *Escpos) MotionUnits(x, y uint8) (int, error) {
 
 // Feeds the paper to the end and performs a Cut. In the ESC/POS Command Manual there is also PartialCut and FullCut documented, but it does exactly the same.
 func (e *Escpos) Cut() (int, error) {
-	return e.WriteRaw([]byte{gs, 'V', 'A', '0'})
+	return e.WriteRaw([]byte{gs, 'V', 'A', 0x00})
 }
 
 // Helpers
 func boolToByte(b bool) byte {
 	if b {
-		return '1'
+		return 0x01
 	}
-	return '0'
+	return 0x00
 }
 func onlyDigits(s string) bool {
 	for _, c := range s {
