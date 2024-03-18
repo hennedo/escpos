@@ -303,8 +303,49 @@ func (e *Escpos) EAN8(code string) (int, error) {
 	return e.WriteRaw(append([]byte{gs, 'k', 3}, byteCode...))
 }
 
-// TODO:
-// CODE39, ITF, CODABAR
+// Prints a CODE39 Barcode. code can contain the characters 0-9, A-Z, space, $, %, +, -, ., /
+func (e *Escpos) CODE39(code string) (int, error) {
+	if len(code) > 255 {
+		return 0, fmt.Errorf("code should have a length smaller than 256")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 69, byte(len(code) + 2), 0x7B, 0x42}, []byte(code)...))
+}
+
+// Prints a ITF Barcode. code can only contain numerical characters and must have an even length
+func (e *Escpos) ITF(code string) (int, error) {
+	if len(code)%2 != 0 {
+		return 0, fmt.Errorf("code should have an even length")
+	}
+	if !onlyDigits(code) {
+		return 0, fmt.Errorf("code can only contain numerical characters")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 70, byte(len(code))}, []byte(code)...))
+}
+
+//Print a CODE93 Barcode. code can contain the characters 0-9, A-Z, space, $, %, +, -, ., /
+func (e *Escpos) CODE93(code string) (int, error) {
+	if len(code) > 255 {
+		return 0, fmt.Errorf("code should have a length smaller than 256")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 72, byte(len(code))}, []byte(code)...))
+}
+
+// Prints a CODABAR Barcode. code can contain the characters 0-9, A-D, a-d, $, +, -, ., /
+func (e *Escpos) CODABAR(code string) (int, error) {
+	if len(code) > 255 {
+		return 0, fmt.Errorf("code should have a length smaller than 256")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 71, byte(len(code))}, []byte(code)...))
+
+}
+
+// Prints a CODE128 Barcode. code can contain the characters 0-9, A-D, a-d, $, +, -, ., /
+func (e *Escpos) CODE128(code string) (int, error) {
+	if len(code) > 253 {
+		return 0, fmt.Errorf("code should have a length smaller than 256")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 73, byte(len(code) + 2), 0x7B, 0x42}, []byte(code)...))
+}
 
 // Prints a QR Code.
 // code specifies the data to be printed
