@@ -165,6 +165,17 @@ func (e *Escpos) WriteWEU(data string) (int, error) {
 	return e.Write(weu)
 }
 
+// WriteLATIN1 writes a string to the printer using ISO8859-1
+func (e *Escpos) WriteLATIN1(data string) (int, error) {
+	cd, err := iconv.Open("iso8859-1", "utf-8")
+	if err != nil {
+		return 0, err
+	}
+	defer cd.Close()
+	iso := cd.ConvString(data)
+	return e.Write(iso)
+}
+
 // Sets the printer to print Bold text.
 func (e *Escpos) Bold(p bool) *Escpos {
 	e.Style.Bold = p
