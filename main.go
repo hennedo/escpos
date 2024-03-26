@@ -3,7 +3,7 @@ package escpos
 import (
 	"bufio"
 	"fmt"
-	"github.com/qiniu/iconv"
+	"golang.org/x/text/encoding/charmap"
 	"image"
 	"io"
 	"math"
@@ -145,34 +145,28 @@ func (e *Escpos) Write(data string) (int, error) {
 
 // WriteGBK writes a string to the printer using GBK encoding
 func (e *Escpos) WriteGBK(data string) (int, error) {
-	cd, err := iconv.Open("gbk", "utf-8")
+	gbk, err := charmap.Windows1251.NewEncoder().String(data) //Was GBK, but not fonded in golang.org/x/text/encoding/charmap
 	if err != nil {
 		return 0, err
 	}
-	defer cd.Close()
-	gbk := cd.ConvString(data)
 	return e.Write(gbk)
 }
 
 // WriteWEU writes a string to the printer using Western European encoding
 func (e *Escpos) WriteWEU(data string) (int, error) {
-	cd, err := iconv.Open("cp850", "utf-8")
+	weu, err := charmap.CodePage850.NewEncoder().String(data)
 	if err != nil {
 		return 0, err
 	}
-	defer cd.Close()
-	weu := cd.ConvString(data)
 	return e.Write(weu)
 }
 
 // WriteLATIN1 writes a string to the printer using ISO8859-1
 func (e *Escpos) WriteLATIN1(data string) (int, error) {
-	cd, err := iconv.Open("iso8859-1", "utf-8")
+	iso, err := charmap.ISO8859_1.NewEncoder().String(data)
 	if err != nil {
 		return 0, err
 	}
-	defer cd.Close()
-	iso := cd.ConvString(data)
 	return e.Write(iso)
 }
 
