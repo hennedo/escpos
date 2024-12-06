@@ -252,7 +252,7 @@ func (e *Escpos) BarcodeWidth(p uint8) (int, error) {
 	if p > 6 {
 		p = 6
 	}
-	return e.WriteRaw([]byte{gs, 'h', p})
+	return e.WriteRaw([]byte{gs, 'w', p})
 }
 
 // Prints a UPCA Barcode. code can only be numerical characters and must have a length of 11 or 12
