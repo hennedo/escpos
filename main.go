@@ -3,10 +3,11 @@ package escpos
 import (
 	"bufio"
 	"fmt"
-	"github.com/qiniu/iconv"
 	"image"
 	"io"
 	"math"
+
+	"golang.org/x/text/encoding/charmap"
 )
 
 type Style struct {
@@ -42,17 +43,24 @@ type PrinterConfig struct {
 }
 
 type Escpos struct {
-	dst    *bufio.Writer
+	// dst *bufio.Writer
+	dst    *bufio.ReadWriter
 	Style  Style
 	config PrinterConfig
 }
 
 // New create an Escpos printer
-func New(dst io.Writer) (e *Escpos) {
+func New(dst io.ReadWriter) (e *Escpos) {
 	e = &Escpos{
-		dst: bufio.NewWriter(dst),
+		// dst: bufio.NewWriter(dst),
+		dst: bufio.NewReadWriter(bufio.NewReader(dst), bufio.NewWriter(dst)),
 	}
 	return
+}
+
+func (e *Escpos) Reset(dst io.Writer) {
+	// func (e *Escpos) Reset(dst io.ReadWriter) {
+	e.dst.Writer.Reset(dst)
 }
 
 // Sets the Printerconfig
@@ -77,7 +85,16 @@ func (e *Escpos) PrintAndCut() error {
 // WriteRaw write raw bytes to the printer
 func (e *Escpos) WriteRaw(data []byte) (int, error) {
 	if len(data) > 0 {
+		// return e.dst.Write(data)
 		return e.dst.Write(data)
+	}
+	return 0, nil
+}
+
+// ReadRaw read raw bytes from the printer
+func (e *Escpos) Read(data *[]byte) (int, error) {
+	if len(*data) > 0 {
+		return e.dst.Reader.Read(*data)
 	}
 	return 0, nil
 }
@@ -145,24 +162,29 @@ func (e *Escpos) Write(data string) (int, error) {
 
 // WriteGBK writes a string to the printer using GBK encoding
 func (e *Escpos) WriteGBK(data string) (int, error) {
-	cd, err := iconv.Open("gbk", "utf-8")
+	gbk, err := charmap.Windows1251.NewEncoder().String(data) //Was GBK, but not fonded in golang.org/x/text/encoding/charmap
 	if err != nil {
 		return 0, err
 	}
-	defer cd.Close()
-	gbk := cd.ConvString(data)
 	return e.Write(gbk)
 }
 
 // WriteWEU writes a string to the printer using Western European encoding
 func (e *Escpos) WriteWEU(data string) (int, error) {
-	cd, err := iconv.Open("cp850", "utf-8")
+	weu, err := charmap.CodePage850.NewEncoder().String(data)
 	if err != nil {
 		return 0, err
 	}
-	defer cd.Close()
-	weu := cd.ConvString(data)
 	return e.Write(weu)
+}
+
+// WriteLATIN1 writes a string to the printer using ISO8859-1
+func (e *Escpos) WriteLATIN1(data string) (int, error) {
+	iso, err := charmap.ISO8859_1.NewEncoder().String(data)
+	if err != nil {
+		return 0, err
+	}
+	return e.Write(iso)
 }
 
 // Sets the printer to print Bold text.
@@ -252,7 +274,7 @@ func (e *Escpos) BarcodeWidth(p uint8) (int, error) {
 	if p > 6 {
 		p = 6
 	}
-	return e.WriteRaw([]byte{gs, 'h', p})
+	return e.WriteRaw([]byte{gs, 'w', p})
 }
 
 // Prints a UPCA Barcode. code can only be numerical characters and must have a length of 11 or 12
@@ -303,8 +325,51 @@ func (e *Escpos) EAN8(code string) (int, error) {
 	return e.WriteRaw(append([]byte{gs, 'k', 3}, byteCode...))
 }
 
-// TODO:
-// CODE39, ITF, CODABAR
+// Prints a CODE39 Barcode. code can contain the characters 0-9, A-Z, space, $, %, +, -, ., /
+func (e *Escpos) CODE39(code string) (int, error) {
+	if len(code) > 255 {
+		return 0, fmt.Errorf("code should have a length smaller than 256")
+	}
+	// return e.WriteRaw(append([]byte{gs, 'k', 69, byte(len(code) + 2), 0x7B, 0x42}, []byte(code)...))
+	return e.WriteRaw(append([]byte{gs, 'k', 69, byte(len(code))}, []byte(code)...))
+
+}
+
+// Prints a ITF Barcode. code can only contain numerical characters and must have an even length
+func (e *Escpos) ITF(code string) (int, error) {
+	if len(code)%2 != 0 {
+		return 0, fmt.Errorf("code should have an even length")
+	}
+	if !onlyDigits(code) {
+		return 0, fmt.Errorf("code can only contain numerical characters")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 70, byte(len(code))}, []byte(code)...))
+}
+
+// Print a CODE93 Barcode. code can contain the characters 0-9, A-Z, space, $, %, +, -, ., /
+func (e *Escpos) CODE93(code string) (int, error) {
+	if len(code) > 255 {
+		return 0, fmt.Errorf("code should have a length smaller than 256")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 72, byte(len(code))}, []byte(code)...))
+}
+
+// Prints a CODABAR Barcode. code can contain the characters 0-9, A-D, a-d, $, +, -, ., /
+func (e *Escpos) CODABAR(code string) (int, error) {
+	if len(code) > 255 {
+		return 0, fmt.Errorf("code should have a length smaller than 256")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 71, byte(len(code))}, []byte(code)...))
+
+}
+
+// Prints a CODE128 Barcode. code can contain the characters 0-9, A-D, a-d, $, +, -, ., /
+func (e *Escpos) CODE128(code string) (int, error) {
+	if len(code) > 253 {
+		return 0, fmt.Errorf("code should have a length smaller than 256")
+	}
+	return e.WriteRaw(append([]byte{gs, 'k', 73, byte(len(code) + 2), 0x7B, 0x42}, []byte(code)...))
+}
 
 // Prints a QR Code.
 // code specifies the data to be printed
@@ -395,8 +460,9 @@ func (e *Escpos) PrintNVBitImage(p uint8, mode uint8) (int, error) {
 	if mode > 3 {
 		return 0, fmt.Errorf("mode only supports values from 0 to 3")
 	}
-
-	return e.WriteRaw([]byte{fs, 'd', p, mode})
+	//data := []byte{fs, 'd', p, mode}
+	data := []byte{gs, '(', 'L', 0x06, 0x00, 0x30, 0x45, 32, 31+p, 0x01, 0x01}
+	return e.WriteRaw(data)
 }
 
 // Configuration stuff
